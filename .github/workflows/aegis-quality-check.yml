@@ -1,0 +1,252 @@
+name: AEGIS Security & Quality Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scans weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+jobs:
+  security-scan:
+    name: 🛡️ AEGIS Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run secret scanning
+      run: |
+        echo "🔍 Scanning for secrets..."
+        python scripts/security/scan-secrets.py --path . --fail-on-found
+    
+    - name: Run dependency security check
+      run: |
+        echo "📦 Checking dependencies for vulnerabilities..."
+        python scripts/security/check-dependencies.py --requirements requirements.txt --fail-on-found
+
+  code-quality:
+    name: 📝 Code Quality & Standards
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black isort mypy
+    
+    - name: Check code formatting with Black
+      run: |
+        echo "🎨 Checking code formatting..."
+        black --check --diff .
+      continue-on-error: true
+    
+    - name: Check import sorting with isort
+      run: |
+        echo "📚 Checking import sorting..."
+        isort --check-only --diff .
+      continue-on-error: true
+    
+    - name: Run flake8 linting
+      run: |
+        echo "🧹 Running linting checks..."
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Type checking with mypy
+      run: |
+        echo "🔍 Running type checks..."
+        mypy --install-types --non-interactive streamlit_app.py || true
+      continue-on-error: true
+
+  hygie-tests:
+    name: 🧪 HYGIE Test Suite
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Run unit tests
+      run: |
+        echo "🧪 Running unit tests..."
+        python -m unittest discover tests/unit -v
+    
+    - name: Run integration tests
+      run: |
+        echo "🔗 Running integration tests..."
+        python -m unittest discover tests/integration -v
+    
+    - name: Generate test coverage report
+      run: |
+        echo "📊 Generating coverage report..."
+        python -m pytest tests/ --cov=. --cov-report=html --cov-report=term
+      continue-on-error: true
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-report
+        path: htmlcov/
+
+  chronos-performance:
+    name: ⚡ CHRONOS Performance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install memory-profiler psutil
+    
+    - name: Performance baseline check
+      run: |
+        echo "⚡ Checking application performance..."
+        python -c "
+        import time
+        import sys
+        sys.path.append('.')
+        
+        # Time the data loading function
+        start = time.time()
+        from streamlit_app import get_gdp_data
+        df = get_gdp_data()
+        end = time.time()
+        
+        load_time = end - start
+        print(f'Data loading time: {load_time:.2f} seconds')
+        print(f'Rows loaded: {len(df)}')
+        print(f'Memory usage: ~{df.memory_usage(deep=True).sum() / 1024 / 1024:.1f} MB')
+        
+        # Performance thresholds
+        if load_time > 5.0:
+            print('⚠️  WARNING: Data loading is slow (>5s)')
+            exit(1)
+        else:
+            print('✅ Performance check passed')
+        "
+
+  manifest-compliance:
+    name: 📋 Integration Manifest Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Check project structure
+      run: |
+        echo "🏗️  Checking project structure compliance..."
+        
+        # Check required directories
+        required_dirs=("src" "tests" "docs" "prompts" "data")
+        for dir in "${required_dirs[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "✅ Directory $dir exists"
+          else
+            echo "❌ Missing required directory: $dir"
+            exit 1
+          fi
+        done
+        
+        # Check required files
+        required_files=("docs/INTEGRATION_MANIFEST.md" "scripts/security/scan-secrets.py" "scripts/security/check-dependencies.py")
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ File $file exists"
+          else
+            echo "❌ Missing required file: $file"
+            exit 1
+          fi
+        done
+    
+    - name: Validate documentation
+      run: |
+        echo "📚 Checking documentation standards..."
+        
+        # Check if main functions have docstrings
+        python -c "
+        import ast
+        import sys
+        
+        def check_docstrings(filename):
+            with open(filename, 'r') as f:
+                tree = ast.parse(f.read())
+            
+            functions_without_docs = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    if not ast.get_docstring(node):
+                        functions_without_docs.append(node.name)
+            
+            if functions_without_docs:
+                print(f'⚠️  Functions without docstrings in {filename}: {functions_without_docs}')
+            else:
+                print(f'✅ All functions in {filename} have docstrings')
+            
+            return len(functions_without_docs) == 0
+        
+        # Check main app file
+        if not check_docstrings('streamlit_app.py'):
+            print('💡 Consider adding docstrings to improve code clarity')
+        "
+      continue-on-error: true
+
+  deployment-ready:
+    name: 🚀 Deployment Readiness
+    needs: [security-scan, code-quality, hygie-tests, chronos-performance, manifest-compliance]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deployment check
+      run: |
+        echo "🚀 All checks passed! Repository is deployment ready."
+        echo "📊 AEGIS Security: ✅"
+        echo "📝 Code Quality: ✅" 
+        echo "🧪 HYGIE Tests: ✅"
+        echo "⚡ CHRONOS Performance: ✅"
+        echo "📋 Manifest Compliance: ✅"
