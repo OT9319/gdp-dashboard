@@ -1,0 +1,68 @@
+# Workflow de Continuous Deployment (CD)
+# Se déclenche UNIQUEMENT quand du code est mergé sur la branche 'main'.
+
+name: Déploiement en Production (CHRONOS)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # S'assurer que les tests sont passés avant de déployer
+    needs: test
+    
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Connexion à un registre Docker
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build et push de l'image Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/constitutional-api:latest
+
+      # Ici, vous ajouteriez l'étape de déploiement sur votre plateforme
+      # Exemple pour Fly.io, Render, Heroku, etc.
+      - name: Déploiement sur la plateforme cible
+        run: echo "Déploiement en cours..." # Remplacer par la commande de votre hébergeur
+
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Installation des dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Vérification de la syntaxe Python
+        run: |
+          python -m py_compile streamlit_app.py
+
+      - name: Test de l'application Streamlit
+        run: |
+          # Test basique : vérifier que l'app peut s'importer sans erreurs
+          python -c "import streamlit_app; print('Application importée avec succès')"
+          
+      - name: Vérification des données
+        run: |
+          # Vérifier que le fichier de données existe
+          test -f data/gdp_data.csv && echo "Fichier de données trouvé" || exit 1

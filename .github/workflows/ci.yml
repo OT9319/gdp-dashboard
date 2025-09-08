@@ -1,0 +1,42 @@
+# Workflow de Continuous Integration (CI)
+# Se déclenche sur les pull requests et les pushes
+
+name: Tests et Vérifications
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Installation des dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Vérification de la syntaxe Python
+        run: |
+          python -m py_compile streamlit_app.py
+
+      - name: Test de l'application Streamlit
+        run: |
+          # Test basique : vérifier que l'app peut s'importer sans erreurs
+          python -c "import streamlit_app; print('Application importée avec succès')"
+          
+      - name: Vérification des données
+        run: |
+          # Vérifier que le fichier de données existe
+          test -f data/gdp_data.csv && echo "Fichier de données trouvé" || exit 1
