@@ -1,0 +1,33 @@
+# Fichier: .github/workflows/deploy.yml
+# Rôle: Automatise le déploiement de l'API sur la plateforme de production.
+
+name: Deploy Constitutional API
+
+# Déclencheur : ce workflow s'exécute à chaque push sur la branche 'main'
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy API
+    runs-on: ubuntu-latest
+
+    steps:
+      # Étape 1: Récupérer le code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Étape 2: Installer l'outil de la plateforme de déploiement (ici, flyctl)
+      - name: Set up flyctl
+        uses: superfly/fly-pr-actions-v2@v2
+      
+      # Étape 3: Exécuter le déploiement
+      # C'est ici que la connexion "magique" se fait.
+      # L'agent utilise un token secret pour s'authentifier et lancer le déploiement.
+      - name: Deploy to production
+        run: flyctl deploy --remote-only
+        env:
+          # Le secret est injecté ici de manière sécurisée
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
