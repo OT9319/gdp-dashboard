@@ -1,0 +1,23 @@
+{
+  "changelog": {
+    "format": "keepachangelog",
+    "filename": "CHANGELOG.md",
+    "categories": {
+      "added": ["feat", "feature"],
+      "changed": ["change", "update", "refactor"],
+      "fixed": ["fix", "bugfix", "hotfix"],
+      "deprecated": ["deprecate"],
+      "removed": ["remove", "delete"],
+      "security": ["security", "sec"]
+    }
+  },
+  "release": {
+    "auto_tag": false,
+    "semantic_versioning": true
+  },
+  "integration": {
+    "trigger_on_merge": true,
+    "branch": "main",
+    "require_pr": true
+  }
+}
