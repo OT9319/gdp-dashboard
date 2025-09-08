@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: gdp-dashboard-db
+    environment:
+      POSTGRES_DB: gdp_dashboard
+      POSTGRES_USER: gdp_user
+      POSTGRES_PASSWORD: gdp_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - gdp-dashboard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gdp_user -d gdp_dashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for session management and caching
+  redis:
+    image: redis:7-alpine
+    container_name: gdp-dashboard-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - gdp-dashboard-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Application
+  api:
+    build: .
+    container_name: gdp-dashboard-api
+    environment:
+      - DATABASE_URL=postgresql://gdp_user:gdp_password@db:5432/gdp_dashboard
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-change-in-production
+      - JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - ENVIRONMENT=development
+    volumes:
+      - .:/app
+      - /app/.venv
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gdp-dashboard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Streamlit Dashboard (existing functionality)
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: gdp-dashboard-streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    networks:
+      - gdp-dashboard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  gdp-dashboard-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
