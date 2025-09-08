@@ -1,0 +1,45 @@
+# Workflow de Continuous Integration (CI)
+# Se déclenche à chaque push ou pull request pour valider la qualité du code.
+
+name: Test et Validation (HYGIE)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Mise en place de Python et Poetry
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installation de Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Installation des dépendances
+        run: poetry install
+
+      - name: Lancement des tests unitaires
+        run: poetry run pytest --cov=src
+
+      # Étape de sécurité optionnelle mais recommandée
+      - name: Scan de sécurité avec CodeQL (AEGIS)
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Lancement de l'analyse CodeQL
+        uses: github/codeql-action/analyze@v3
