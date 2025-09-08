@@ -1,5 +1,15 @@
 .streamlit/secrets.toml
 
+# Constitutional Security (AEGIS Compliance)
+# Never commit actual secrets or sensitive configuration
+.env
+*.env
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -159,6 +169,24 @@ cython_debug/
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  and can be added to the global gitignore or merged into this project.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Application-specific temporary files
+temp/
+tmp/
+*.tmp
+
+# Performance profiling outputs
+*.prof
+profile_results/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
