@@ -17,3 +17,10 @@ A simple Streamlit app showing the GDP of different countries in the world.
    ```
    $ streamlit run streamlit_app.py
    ```
+
+## Documentation
+
+This project uses automated documentation with Lovable for changelog generation. See:
+- [`CHANGELOG.md`](CHANGELOG.md) - Automated project changelog
+- [`LIVRE_DES_ORIGINES.md`](LIVRE_DES_ORIGINES.md) - Integration analysis and constitutional validation
+- [`.lovable/README.md`](.lovable/README.md) - Lovable configuration details
