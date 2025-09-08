@@ -131,8 +131,8 @@ class Task(ConstitutionalBase):
     metadata_json = Column(JSON, default=dict)
     
     # Relationships
-    creator = relationship("User", foreign_keys=[created_by], back_populates="created_tasks")
-    assignee = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_tasks")
+    creator = relationship("User", foreign_keys="Task.created_by", back_populates="created_tasks")
+    assignee = relationship("User", foreign_keys="Task.assigned_to", back_populates="assigned_tasks")
     audit_logs = relationship("AuditLog", back_populates="task")
 
     # Constraints and indexes

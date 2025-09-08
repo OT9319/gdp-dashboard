@@ -6,7 +6,7 @@ Implements constitutional validation principles with comprehensive input/output 
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field, validator, root_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from enum import Enum
 
 from src.models.db_models import TaskStatus, TaskPriority, UserRole
@@ -38,14 +38,14 @@ class UserBase(ConstitutionalBaseSchema):
     full_name: Optional[str] = Field(None, max_length=200, description="User's full name")
     role: UserRole = Field(default=UserRole.USER, description="User's role in the system")
     
-    @validator('username')
+    @field_validator('username')
     def validate_username(cls, v):
         """Constitutional username validation"""
         if not v.isalnum() and '_' not in v and '-' not in v:
             raise ValueError('Username must contain only alphanumeric characters, underscores, or hyphens')
         return v.lower()
     
-    @validator('full_name')
+    @field_validator('full_name')
     def validate_full_name(cls, v):
         """Constitutional full name validation"""
         if v and len(v.strip()) < 2:
@@ -58,7 +58,7 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, description="User's password")
     confirm_password: str = Field(..., description="Password confirmation")
     
-    @validator('password')
+    @field_validator('password')
     def validate_password(cls, v):
         """Constitutional password validation"""
         if len(v) < 8:
@@ -71,14 +71,12 @@ class UserCreate(UserBase):
             raise ValueError('Password must contain at least one digit')
         return v
     
-    @root_validator
-    def validate_passwords_match(cls, values):
+    @model_validator(mode='after')
+    def validate_passwords_match(self):
         """Ensure passwords match"""
-        password = values.get('password')
-        confirm_password = values.get('confirm_password')
-        if password and confirm_password and password != confirm_password:
+        if self.password and self.confirm_password and self.password != self.confirm_password:
             raise ValueError('Passwords do not match')
-        return values
+        return self
 
 
 class UserUpdate(ConstitutionalBaseSchema):
@@ -116,19 +114,19 @@ class TaskBase(ConstitutionalBaseSchema):
     tags: Optional[List[str]] = Field(default_factory=list, description="Task tags")
     metadata_json: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
     
-    @validator('title')
+    @field_validator('title')
     def validate_title(cls, v):
         """Constitutional title validation"""
         if not v or not v.strip():
             raise ValueError('Title cannot be empty')
         return v.strip()
     
-    @validator('description')
+    @field_validator('description')
     def validate_description(cls, v):
         """Constitutional description validation"""
         return v.strip() if v else v
     
-    @validator('tags')
+    @field_validator('tags')
     def validate_tags(cls, v):
         """Constitutional tags validation"""
         if v is None:
@@ -141,7 +139,7 @@ class TaskBase(ConstitutionalBaseSchema):
                 validated_tags.append(tag)
         return list(set(validated_tags))
     
-    @validator('due_date')
+    @field_validator('due_date')
     def validate_due_date(cls, v):
         """Constitutional due date validation"""
         if v and v <= datetime.now():
@@ -223,11 +221,11 @@ class ConstitutionalRuleBase(ConstitutionalBaseSchema):
     description: str = Field(..., min_length=1)
     rule_type: str = Field(..., description="Type of rule (validation, security, business)")
     rule_expression: str = Field(..., description="Rule expression in JSON or other format")
-    severity: str = Field(default="medium", regex="^(low|medium|high|critical)$")
+    severity: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
     applies_to_entity: Optional[str] = None
     applies_to_action: Optional[str] = None
     is_enabled: bool = Field(default=True)
-    enforcement_mode: str = Field(default="strict", regex="^(strict|warning|advisory)$")
+    enforcement_mode: str = Field(default="strict", pattern="^(strict|warning|advisory)$")
     tags: Optional[List[str]] = Field(default_factory=list)
     metadata_json: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
@@ -243,11 +241,11 @@ class ConstitutionalRuleUpdate(ConstitutionalBaseSchema):
     description: Optional[str] = Field(None, min_length=1)
     rule_type: Optional[str] = None
     rule_expression: Optional[str] = None
-    severity: Optional[str] = Field(None, regex="^(low|medium|high|critical)$")
+    severity: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$")
     applies_to_entity: Optional[str] = None
     applies_to_action: Optional[str] = None
     is_enabled: Optional[bool] = None
-    enforcement_mode: Optional[str] = Field(None, regex="^(strict|warning|advisory)$")
+    enforcement_mode: Optional[str] = Field(None, pattern="^(strict|warning|advisory)$")
     tags: Optional[List[str]] = None
     metadata_json: Optional[Dict[str, Any]] = None
 
@@ -322,7 +320,7 @@ class TaskFilterParams(ConstitutionalBaseSchema):
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=20, ge=1, le=100)
     sort_by: str = Field(default="created_at")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
 
 class UserFilterParams(ConstitutionalBaseSchema):
@@ -334,4 +332,4 @@ class UserFilterParams(ConstitutionalBaseSchema):
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=20, ge=1, le=100)
     sort_by: str = Field(default="created_at")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
